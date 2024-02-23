@@ -151,6 +151,7 @@ class Image(BatchableMedia):
         boxes: Optional[Union[Dict[str, "BoundingBoxes2D"], Dict[str, dict]]] = None,
         masks: Optional[Union[Dict[str, "ImageMask"], Dict[str, dict]]] = None,
         file_type: Optional[str] = None,
+        normalize: bool = False,
     ) -> None:
         super().__init__()
         # TODO: We should remove grouping, it's a terrible name and I don't
@@ -292,6 +293,7 @@ class Image(BatchableMedia):
         data: "ImageDataType",
         mode: Optional[str] = None,
         file_type: Optional[str] = None,
+        normalize: bool = False,
     ) -> None:
         pil_image = util.get_module(
             "PIL.Image",
@@ -321,7 +323,7 @@ class Image(BatchableMedia):
             if data.ndim > 2:
                 data = data.squeeze()  # get rid of trivial dimensions as a convenience
             self._image = pil_image.fromarray(
-                self.to_uint8(data), mode=mode or self.guess_mode(data)
+                self.to_uint8(data, normalize=normalize), mode=mode or self.guess_mode(data)
             )
         accepted_formats = ["png", "jpg", "jpeg", "bmp"]
         if file_type is None:
@@ -484,8 +486,8 @@ class Image(BatchableMedia):
             )
 
     @classmethod
-    def to_uint8(cls, data: "np.ndarray") -> "np.ndarray":
-        """Convert image data to uint8.
+    def to_uint8(cls, data: "np.ndarray", normalize: bool = False) -> "np.ndarray":
+        """Convert image data to uint8 based on normalization flag and data range.
 
         Convert floating point image on the range [0,1] and integer images on the range
         [0,255] to uint8, clipping if necessary.
@@ -498,17 +500,21 @@ class Image(BatchableMedia):
         # I think it's better to check the image range vs the data type, since many
         # image libraries will return floats between 0 and 255
 
-        # some images have range -1...1 or 0-1
-        dmin = np.min(data)
-        dmax = np.max(data)
-        if dmin < 0:
-            data = (data - np.min(data)) / np.ptp(data)
-        if dmax <= 1.0 or dmax >= 255.0:
-            data = data / np.max(data)  # normalize the data to 0 - 1
-        data = 255 * data  # scale by 255
+        if normalize:
+            # Normalize data to [0, 1], then scale to [0, 255]
+            data = (data - np.min(data)) / np.ptp(data) * 255
+        else:
+            dmin, dmax = np.min(data), np.max(data)
+            # Scale data in range [-1, 1] or [0, 1] to [0, 255]
+            if dmin >= -1 and dmax <= 1:
+                if dmin < 0:  # Scale from [-1, 1] to [0, 255]
+                    data = (data + 1) / 2 * 255
+                else:  # Scale from [0, 1] to [0, 255]
+                    data = data * 255
+            # For data outside these ranges, clip to [0, 255] without scaling if not normalizing
 
         # assert issubclass(data.dtype.type, np.integer), 'Illegal image format.'
-        return data.clip(0, 255).astype(np.uint8)
+        return np.clip(data, 0, 255).astype(np.uint8)
 
     @classmethod
     def seq_to_json(
