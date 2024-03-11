@@ -98,6 +98,9 @@ class SummaryFilePolicy(DefaultFilePolicy):
                 util.to_human_size(util.MAX_LINE_BYTES)
             )
             wandb.termerror(msg, repeat=False)
+            import json
+            loaded = json.loads(data)
+            wandb.termerror(f"Step: {loaded['_step']} - {list(loaded.keys())}", repeat=False)
             wandb._sentry.message(msg, repeat=False)
             return False
         return {"offset": 0, "content": [data]}
