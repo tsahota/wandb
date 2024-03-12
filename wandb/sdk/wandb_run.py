@@ -1829,8 +1829,8 @@ class Run:
     @_run_decorator._attach
     def save(
         self,
-        glob_str: Optional[Union[str | os.PathLike]] = None,
-        base_path: Optional[Union[str | os.PathLike]] = None,
+        glob_str: Optional[Union[str, os.PathLike]] = None,
+        base_path: Optional[Union[str, os.PathLike]] = None,
         policy: "PolicyName" = "live",
     ) -> Union[bool, List[str]]:
         """Sync one or more files to W&B.
