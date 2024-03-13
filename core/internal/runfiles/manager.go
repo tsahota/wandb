@@ -4,6 +4,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/Khan/genqlient/graphql"
+	"github.com/wandb/wandb/core/internal/filetransfer"
 	"github.com/wandb/wandb/core/internal/settings"
 	"github.com/wandb/wandb/core/pkg/observability"
 	"github.com/wandb/wandb/core/pkg/service"
@@ -11,9 +13,11 @@ import (
 
 // Internal implementation of the Manager interface.
 type manager struct {
-	persistFn func(*service.Record)
-	logger    *observability.CoreLogger
-	settings  *settings.Settings
+	persistFn    func(*service.Record)
+	logger       *observability.CoreLogger
+	settings     *settings.Settings
+	fileTransfer *filetransfer.FileTransferManager
+	graphQL      graphql.Client
 
 	// Wait group for file uploads.
 	uploadWg *sync.WaitGroup
@@ -28,9 +32,11 @@ type manager struct {
 
 func newManager(params ManagerParams) Manager {
 	return &manager{
-		persistFn: params.PersistFn,
-		logger:    params.Logger,
-		settings:  params.Settings,
+		persistFn:    params.PersistFn,
+		logger:       params.Logger,
+		settings:     params.Settings,
+		fileTransfer: params.FileTransfer,
+		graphQL:      params.GraphQL,
 
 		uploadWg: &sync.WaitGroup{},
 

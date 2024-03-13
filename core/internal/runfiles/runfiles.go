@@ -6,6 +6,8 @@
 package runfiles
 
 import (
+	"github.com/Khan/genqlient/graphql"
+	"github.com/wandb/wandb/core/internal/filetransfer"
 	"github.com/wandb/wandb/core/internal/settings"
 	"github.com/wandb/wandb/core/pkg/observability"
 	"github.com/wandb/wandb/core/pkg/service"
@@ -31,8 +33,10 @@ type ManagerParams struct {
 	// Function for persisting a record to the transaction log.
 	PersistFn func(*service.Record)
 
-	Logger   *observability.CoreLogger
-	Settings *settings.Settings
+	Logger       *observability.CoreLogger
+	Settings     *settings.Settings
+	FileTransfer *filetransfer.FileTransferManager
+	GraphQL      graphql.Client
 }
 
 func NewManager(params ManagerParams) Manager {
