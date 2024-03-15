@@ -1,8 +1,6 @@
 package corelib
 
 import (
-	"fmt"
-
 	"github.com/segmentio/encoding/json"
 
 	"github.com/wandb/wandb/core/pkg/service"
@@ -14,16 +12,40 @@ type genericItem interface {
 	GetValueJson() string
 }
 
+// Custom unmarshal function to handle Infinity, -Infinity, and NaN
+//
+// This is a workaround for the fact that when the client receives a
+// negative infinity, positive infinity, or NaN, it converts it to a string
+// and sends it to this service. For now we will just store it as a string
+// and send it as such to the server.
+//
+// TODO: We should handle these values properly, but in the short-term to avoid
+// panics we will just store them as strings.
+func Unmarshal(b []byte) (any, error) {
+	jsonString := string(b)
+	var x interface{}
+	switch jsonString {
+	case "Infinity", "-Infinity", "NaN":
+		x = jsonString
+	default:
+		err := json.Unmarshal(b, &x)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return x, nil
+}
+
 func JsonifyItems[V genericItem](items []V) (string, error) {
 	jsonMap := make(map[string]interface{})
 
 	for _, item := range items {
-		var value interface{}
-		if err := json.Unmarshal([]byte(item.GetValueJson()), &value); err != nil {
-			e := fmt.Errorf("json unmarshal error: %v, items: %v", err, item)
-			return "", e
+		value := item.GetValueJson()
+		result, err := Unmarshal([]byte(value))
+		if err != nil {
+			return "", err
 		}
-		jsonMap[item.GetKey()] = value
+		jsonMap[item.GetKey()] = result
 	}
 
 	jsonBytes, err := json.Marshal(jsonMap)
