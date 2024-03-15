@@ -1,6 +1,8 @@
 package corelib
 
 import (
+	"fmt"
+
 	"github.com/segmentio/encoding/json"
 
 	"github.com/wandb/wandb/core/pkg/service"
@@ -22,8 +24,10 @@ type genericItem interface {
 // TODO: We should handle these values properly, but in the short-term to avoid
 // panics we will just store them as strings.
 func Unmarshal(b []byte) (any, error) {
-	jsonString := string(b)
+
 	var x interface{}
+
+	jsonString := string(b)
 	switch jsonString {
 	case "Infinity", "-Infinity", "NaN":
 		x = jsonString
@@ -40,12 +44,12 @@ func JsonifyItems[V genericItem](items []V) (string, error) {
 	jsonMap := make(map[string]interface{})
 
 	for _, item := range items {
-		value := item.GetValueJson()
-		result, err := Unmarshal([]byte(value))
+		value, err := Unmarshal([]byte(item.GetValueJson()))
 		if err != nil {
-			return "", err
+			e := fmt.Errorf("json unmarshal error: %v, items: %v", err, item)
+			return "", e
 		}
-		jsonMap[item.GetKey()] = result
+		jsonMap[item.GetKey()] = value
 	}
 
 	jsonBytes, err := json.Marshal(jsonMap)
